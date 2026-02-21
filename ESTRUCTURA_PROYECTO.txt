@@ -1,0 +1,435 @@
+================================================================================
+  ESTRUCTURA DEL PROYECTO - Panadería Laravel
+  Documentación de la arquitectura MVC (Modelo-Vista-Controlador)
+================================================================================
+
+📁 ESTRUCTURA GENERAL DEL PROYECTO
+================================================================================
+
+panaderia/
+├── 📁 app/
+│   ├── 📁 Http/
+│   │   └── 📁 Controllers/          ← Controladores (lógica de negocio)
+│   └── 📁 Models/                    ← Modelos Eloquent (tablas BD)
+├── 📁 database/
+│   └── 📁 migrations/                ← Migraciones (crear tablas BD)
+├── 📁 resources/
+│   └── 📁 views/                     ← Vistas Blade (HTML con PHP)
+│       ├── 📁 admin/                 ← Panel admin y reportes
+│       ├── 📁 clientes/              ← CRUD clientes
+│       ├── 📁 empleados/             ← CRUD empleados
+│       ├── 📁 layouts/               ← Plantillas base
+│       ├── 📁 terminal/              ← Terminal de ventas
+│       └── index.blade.php           ← Página de inicio
+├── 📁 routes/
+│   └── web.php                       ← Todas las rutas de la app
+└── 📁 public/                          ← Archivos accesibles al público
+
+
+================================================================================
+🗄️  1. MODELOS (app/Models/)
+================================================================================
+
+Los modelos representan las tablas de la base de datos.
+Usan Eloquent ORM (Object-Relational Mapping).
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Modelo Empleado.php                                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Propósito: Representa la tabla 'empleados'                                   │
+│ Relaciones:                                                                │
+│   - hasMany(Venta)       → Un empleado puede hacer muchas ventas           │
+│   - hasMany(Compra)      → Un empleado puede hacer muchas compras          │
+│   - hasOne(InfoEmpleado) → Un empleado tiene un solo registro de info     │
+│ Campos: id_empleado, nombre_empleado, rol, fecha_ingreso                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Modelo InfoEmpleado.php                                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Propósito: Información adicional del empleado (salario, teléfono, etc.)     │
+│ Tabla: info_empleados                                                      │
+│ Relación: belongsTo(Empleado) → Pertenece a un empleado                    │
+│ Campos: id_info, id_empleado, salario, telefono, direccion,                │
+│         fecha_contratacion, estado, notas                                  │
+│ NOTA: Esta tabla SE AGREGÓ para el proyecto (relación 1:1 con empleados)    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Modelo Cliente.php                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Propósito: Clientes de la panadería                                        │
+│ Tabla: clientes                                                            │
+│ Relación: hasMany(Venta) → Un cliente puede comprar muchas veces            │
+│ Campos: id_cliente, nombre                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Modelo Producto.php                                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Propósito: Panes/productos disponibles                                      │
+│ Tabla: panes                                                               │
+│ Campos: id_pan, nombre_pan, precio, stock_disponible                        │
+│ Relaciones:                                                                │
+│   - belongsToMany(MateriaPrima) → Ingredientes de cada pan                 │
+│   - hasMany(DetalleVenta) → Detalles de venta donde aparece                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Modelo Venta.php                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Propósito: Registro de ventas realizadas                                    │
+│ Tabla: ventas                                                              │
+│ Campos: id_venta, id_cliente, id_empleado, fecha_venta,                    │
+│         total_venta, notas                                                 │
+│ Relaciones:                                                                │
+│   - belongsTo(Cliente)     → El cliente que compró                         │
+│   - belongsTo(Empleado)    → El empleado que vendió                        │
+│   - hasMany(DetalleVenta)  → Productos incluidos en la venta               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+🎮 2. CONTROLADORES (app/Http/Controllers/)
+================================================================================
+
+Los controladores manejan la lógica de la aplicación.
+Reciben peticiones HTTP, usan los modelos, y devuelven respuestas.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EmpleadoController.php                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ MÉTODOS CRUD (Create, Read, Update, Delete):                              │
+│                                                                              │
+│ index()    → GET /api/empleados     → Lista todos los empleados             │
+│ store()    → POST /api/empleados    → Crea nuevo empleado                   │
+│              - Crea registro en tabla 'empleados'                           │
+│              - Si viene info adicional (salario), crea en 'info_empleados' │
+│ show()     → GET /api/empleados/{id} → Muestra un empleado específico       │
+│ update()   → PUT /api/empleados/{id} → Actualiza empleado                   │
+│              - Actualiza datos básicos en 'empleados'                       │
+│              - Actualiza o crea info en 'info_empleados'                    │
+│ destroy()  → DELETE /api/empleados/{id} → Elimina empleado                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ VentaController.php                                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Método especial: store()                                                     │
+│   - Crea la venta en tabla 'ventas'                                         │
+│   - Crea detalles en tabla 'detalle_venta'                                  │
+│   - REDUCE el stock de cada producto vendido                                │
+│   - FÓRMULA: producto.stock_disponible -= cantidad_vendida                   │
+│                                                                              │
+│ Flujo de una venta:                                                        │
+│ 1. Cliente escribe su nombre en terminal                                   │
+│ 2. Se busca/crea el cliente                                                │
+│ 3. Cliente selecciona panes (se guardan en carrito)                        │
+│ 4. Al finalizar:                                                           │
+│    - Se crea registro en 'ventas' con total                                │
+│    - Se crean registros en 'detalle_venta' (cada pan vendido)              │
+│    - Se actualiza stock en tabla 'panes'                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+🗃️ 3. MIGRACIONES (database/migrations/)
+================================================================================
+
+Las migraciones crean las tablas de la base de datos.
+Son archivos PHP que definen columnas, tipos de datos, llaves foráneas.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Migración más importante creada:                                         │
+│ 2026_02_20_010000_create_info_empleados_table.php                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Tabla: info_empleados                                                      │
+│ Propósito: Almacenar salarios y datos adicionales de empleados             │
+│                                                                              │
+│ Columnas:                                                                    │
+│   - id_info: INT, AUTO_INCREMENT, PRIMARY KEY                              │
+│   - id_empleado: INT, FOREIGN KEY → empleados.id_empleado                  │
+│   - salario: DECIMAL(10,2) - hasta 999,999,999.99                          │
+│   - telefono: VARCHAR(20)                                                  │
+│   - direccion: TEXT                                                        │
+│   - fecha_contratacion: DATE                                               │
+│   - estado: ENUM('activo', 'inactivo', 'vacaciones')                        │
+│   - notas: TEXT                                                            │
+│   - timestamps() - created_at y updated_at automáticos                     │
+│                                                                              │
+│ RELACIÓN: empleados 1:1 info_empleados                                     │
+│   Un empleado tiene cero o un registro de info adicional                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+🌐 4. RUTAS (routes/web.php)
+================================================================================
+
+Las rutas conectan URLs con controladores o vistas.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ RUTAS DE VISTAS (HTML)                                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ GET /              → view('index')          → Dashboard                    │
+│ GET /admin         → view('admin.index')    → Panel de administración      │
+│ GET /admin/ventas  → view('admin.ventas')    → Reporte de ventas           │
+│ GET /terminal      → view('terminal.index')  → Terminal de ventas           │
+│ GET /clientes      → view('clientes.index')  → CRUD clientes               │
+│ GET /empleados     → view('empleados.index') → CRUD empleados              │
+│ GET /productos     → view('productos.index') → CRUD productos               │
+│ GET /materias-primas → view('materias_primas.index') → CRUD materias      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ RUTAS DE API (JSON para JavaScript/AJAX)                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ EMPLEADOS:                                                                  │
+│   GET    /api/empleados              → EmpleadoController@index          │
+│   POST   /api/empleados              → EmpleadoController@store           │
+│   GET    /api/empleados/{id}         → EmpleadoController@show              │
+│   PUT    /api/empleados/{id}         → EmpleadoController@update            │
+│   DELETE /api/empleados/{id}         → EmpleadoController@destroy           │
+│                                                                              │
+│ CLIENTES:                                                                  │
+│   GET    /api/clientes              → ClienteController@index               │
+│   POST   /api/clientes              → ClienteController@store               │
+│   ... (mismo patrón CRUD)                                                   │
+│                                                                              │
+│ VENTAS:                                                                     │
+│   POST   /api/ventas                 → VentaController@store                │
+│   (Incluye creación de detalles y actualización de stock)                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+🎨 5. VISTAS (resources/views/)
+================================================================================
+
+Las vistas usan Blade, el motor de plantillas de Laravel.
+Permiten código PHP dentro de HTML de forma limpia.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Layout Principal: layouts/app.blade.php                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Propósito: Plantilla base que usan todas las páginas                        │
+│                                                                              │
+│ Estructura:                                                                 │
+│   <!DOCTYPE html>                                                           │
+│   <html>                                                                    │
+│   <head>                                                                    │
+│       <title>@yield('titulo')</title>       ← Título dinámico              │
+│       <script src="tailwindcss"></script>  ← Framework CSS               │
+│   </head>                                                                   │
+│   <body>                                                                    │
+│       <header> ← Menú de navegación                                       │
+│       <main>                                                                    │
+│           @yield('contenido')               ← Contenido de cada página      │
+│       </main>                                                                    │
+│       <footer>                                                              │
+│       @yield('scripts')                     ← Scripts JS de cada página     │
+│   </body>                                                                   │
+│   </html>                                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Terminal de Ventas: terminal/index.blade.php                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Flujo de 3 pasos:                                                           │
+│                                                                              │
+│ PASO 1: Identificar Cliente (id="paso-1")                                  │
+│   - Campo de texto para nombre                                             │
+│   - Botón "Continuar" → llama buscarOCrearCliente()                        │
+│   - Si el cliente no existe, se crea automáticamente                         │
+│                                                                              │
+│ PASO 2: Seleccionar Panes (id="paso-2", inicialmente hidden)               │
+│   - Grid con todos los panes disponibles                                   │
+│   - Cada pan muestra: nombre, precio, stock disponible                     │
+│   - Botón "Agregar" si hay stock, "Sin stock" si no                        │
+│   - Carrito que muestra panes seleccionados y total                         │
+│   - Botón "Finalizar Compra" (deshabilitado si carrito vacío)              │
+│                                                                              │
+│ PASO 3: Ticket (id="ticket", inicialmente hidden)                           │
+│   - Muestra: nombre del negocio, fecha, cliente, items, total              │
+│   - Botón "Imprimir" → window.print()                                       │
+│   - Botón "Nueva Venta" → reinicia el proceso                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Empleados: empleados/index.blade.php                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Componentes:                                                                │
+│   - Tabla con columnas: ID, Nombre, Rol, Salario, Estado, Acciones         │
+│   - Botón "Nuevo Empleado" → abre modal                                    │
+│   - Modal con formulario: nombre, rol, fecha, salario, teléfono, estado   │
+│   - Botones de acción: Editar (📝) y Eliminar (🗑️)                        │
+│                                                                              │
+│ JavaScript:                                                                 │
+│   - cargarEmpleados(): Obtiene datos de /api/empleados                     │
+│   - mostrarEmpleados(): Genera HTML de la tabla                           │
+│   - abrirModalCrear()/Editar(): Muestra el modal con datos                 │
+│   - guardarEmpleado(): POST o PUT a la API                                 │
+│   - eliminarEmpleado(): DELETE con confirmación                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+🔗 6. FLUJO DE DATOS (Cómo funciona todo junto)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ EJEMPLO: Crear un empleado nuevo                                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ 1. USUARIO                                                                  │
+│    ↓                                                                        │
+│    Hace clic en "Nuevo Empleado" → abre modal                              │
+│    Llena: nombre, rol, fecha, salario, teléfono, estado                  │
+│    Clic en "Guardar"                                                        │
+│                                                                              │
+│ 2. VISTA (empleados/index.blade.php)                                        │
+│    ↓                                                                        │
+│    JavaScript: guardarEmpleado()                                            │
+│    - Recoge datos del formulario                                            │
+│    - Si hay ID → PUT /api/empleados/{id}                                   │
+│    - Si no hay ID → POST /api/empleados                                    │
+│    - Envía: {nombre_empleado, rol, fecha_ingreso, info: {salario, ...}}    │
+│                                                                              │
+│ 3. RUTA (web.php)                                                           │
+│    ↓                                                                        │
+│    POST /api/empleados → EmpleadoController@store                           │
+│                                                                              │
+│ 4. CONTROLADOR (EmpleadoController.php)                                     │
+│    ↓                                                                        │
+│    store() {                                                                │
+│        // Validar datos                                                     │
+│        $request->validate([...])                                            │
+│                                                                              │
+│        // Crear empleado en tabla 'empleados'                              │
+│        $empleado = Empleado::create([...]);                                 │
+│                                                                              │
+│        // Crear info adicional en 'info_empleados'                           │
+│        if (!empty($request->info)) {                                        │
+│            InfoEmpleado::create([                                           │
+│                'id_empleado' => $empleado->id_empleado,                     │
+│                'salario' => $request->info['salario'],                       │
+│                ...                                                           │
+│            ]);                                                              │
+│        }                                                                    │
+│                                                                              │
+│        return response()->json($empleado, 201);                              │
+│    }                                                                        │
+│                                                                              │
+│ 5. MODELO (Empleado.php / InfoEmpleado.php)                                 │
+│    ↓                                                                        │
+│    Eloquent convierte:                                                      │
+│    Empleado::create([...]) → INSERT INTO empleados (...)                   │
+│    InfoEmpleado::create([...]) → INSERT INTO info_empleados (...)            │
+│                                                                              │
+│ 6. BASE DE DATOS                                                            │
+│    ↓                                                                        │
+│    Tablas actualizadas: empleados + info_empleados                          │
+│                                                                              │
+│ 7. RESPUESTA JSON                                                           │
+│    ↓                                                                        │
+│    JavaScript recibe empleado creado                                        │
+│    Cierra modal                                                             │
+│    Recarga tabla                                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+📊 7. RELACIONES ENTRE TABLAS (Diagrama ER simplificado)
+================================================================================
+
+┌─────────────┐         1:N         ┌─────────────┐
+│  empleados  │◄───────────────────│   ventas    │
+├─────────────┤                     ├─────────────┤
+│ id_empleado │                     │ id_venta    │
+│ nombre      │         1:N         │ id_cliente  │
+│ rol         │                     │ id_empleado │
+│ fecha_ingr..│                     │ total       │
+└─────────────┘                     └─────────────┘
+       │ 1:1                                │
+       ▼                                    │ N:1
+┌─────────────┐                            │
+│info_empleados│                           ▼
+├─────────────┤                      ┌─────────────┐
+│ id_info     │                      │  clientes   │
+│ id_empleado─┘                      ├─────────────┤
+│ salario     │                      │ id_cliente  │
+│ telefono    │                      │ nombre      │
+│ estado      │                      └─────────────┘
+└─────────────┘
+
+┌─────────────┐         N:M         ┌─────────────┐
+│    panes    │◄───────────────────►│materias_primas│
+├─────────────┤    (pivot table)    ├─────────────┤
+│ id_pan      │                     │ id_materia  │
+│ nombre_pan  │                     │ nombre      │
+│ precio      │                     │ stock       │
+│ stock_disp..│                     │ unidad      │
+└─────────────┘                     └─────────────┘
+       │
+       │ 1:N
+       ▼
+┌─────────────┐
+│detalle_venta│  ← Tabla pivote: conecta ventas con panes
+├─────────────┤
+│ id_detalle  │
+│ id_venta    │
+│ id_pan      │
+│ cantidad    │
+│ precio_unit │
+└─────────────┘
+
+
+================================================================================
+🎯 8. CARACTERÍSTICAS ESPECIALES DEL PROYECTO
+================================================================================
+
+1. RELACIÓN 1:1 (NUEVA)
+   - Tabla info_empleados se agregó para separar datos sensibles (salario)
+   - Un empleado puede tener o no información adicional
+   - Relación opcional (nullable en la práctica)
+
+2. REDUCCIÓN AUTOMÁTICA DE STOCK
+   - Al crear una venta, el stock de cada pan se reduce automáticamente
+   - Fórmula: stock_disponible = stock_disponible - cantidad_vendida
+   - Si stock llega a 0, el pan muestra "Sin stock" en la terminal
+
+3. CLIENTE IMPLÍCITO
+   - En la terminal, el cliente solo escribe su nombre
+   - Si existe → se usa
+   - Si no existe → se crea automáticamente
+   - No requiere login ni registro formal
+
+4. TERMINAL DE VENTAS (3 pasos)
+   - Paso 1: Identificar cliente
+   - Paso 2: Seleccionar productos (con carrito en tiempo real)
+   - Paso 3: Mostrar ticket (imprimible)
+
+5. PANEL DE ADMINISTRACIÓN
+   - Acceso a: Clientes, Empleados, Productos, Materias Primas
+   - Reporte de ventas con top vendedores
+   - Resumen estadístico en tiempo real
+
+
+================================================================================
+✅ RESUMEN PARA GITHUB
+================================================================================
+
+Este proyecto es un sistema de punto de venta para una panadería que incluye:
+
+✓ Gestión de empleados con información de salarios (tabla info_empleados)
+✓ Terminal de ventas para atender clientes (flujo de 3 pasos)
+✓ Reducción automática de inventario al vender
+✓ Panel de administración con reportes
+✓ Diseño responsivo usando Tailwind CSS
+✓ API RESTful para comunicación AJAX
+✓ Base de datos relacional con Eloquent ORM
+
+Tecnologías: Laravel 11, PHP 8.3, MySQL, Tailwind CSS, JavaScript, Blade
+
+================================================================================
