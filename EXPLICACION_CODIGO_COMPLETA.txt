@@ -1,0 +1,684 @@
+========================================
+EXPLICACIÓN CÓDIGO - PANADERÍA LARAVEL
+========================================
+
+========================================
+CONTROLADOR - EmpleadoController.php
+========================================
+
+<?php
+
+namespace App\Http\Controllers;
+// Espacio de trabajo para evitar conflictos de nombres
+// Organiza las clases por carpetas
+
+use App\Models\Empleado;
+use App\Models\InfoEmpleado;
+use Illuminate\Http\Request;
+// Importamos las clases que vamos a usar
+
+class EmpleadoController extends Controller
+{
+    // Hereda de Controller que tiene métodos básicos de Laravel
+
+    public function index()
+    {
+        // Método para LISTAR todos los empleados
+        // Se accede con GET /api/empleados
+        
+        try {
+            // Intenta ejecutar este código
+            $empleados = Empleado::with(['compras', 'ventas', 'infoEmpleado'])->get();
+            // Empleado::with() - Carga relaciones para evitar consultas extras
+            // ['compras', 'ventas', 'infoEmpleado'] - Carga compras, ventas e info del empleado
+            // ->get() - Ejecuta la consulta y obtiene todos los registros
+            
+            return response()->json($empleados);
+            // Devuelve los empleados en formato JSON
+            
+        } catch (\Exception $e) {
+            // Si hay error, entra aquí
+            return response()->json(['error' => $e->getMessage()], 500);
+            // Devuelve mensaje de error con código 500 (error del servidor)
+        }
+    }
+
+    public function store(Request $request)
+    {
+        // Método para GUARDAR un empleado nuevo
+        // Se accede con POST /api/empleados
+        
+        try {
+            $request->validate([
+                'nombre_empleado' => 'required|string|max:100',
+                // nombre_empleado es obligatorio, debe ser texto, máximo 100 caracteres
+                'rol' => 'required|string|max:100',
+                // rol es obligatorio, debe ser texto, máximo 100 caracteres
+                'fecha_ingreso' => 'required|date',
+                // fecha_ingreso es obligatoria, debe ser fecha válida
+                'info' => 'nullable|array'
+                // info es opcional (nullable), debe ser un array
+            ]);
+
+            $empleado = Empleado::create($request->only(['nombre_empleado', 'rol', 'fecha_ingreso']));
+            // create() - Inserta nuevo registro en la tabla empleados
+            // only() - Solo usa estos campos del request (seguridad)
+            
+            if (!empty($request->info)) {
+                // Si viene información adicional (!empty = NO está vacío)
+                InfoEmpleado::create([
+                    'id_empleado' => $empleado->id_empleado,
+                    'salario' => $request->info['salario'] ?? 0,
+                    // ?? 0 - Si no existe, usa 0 como valor por defecto
+                    'telefono' => $request->info['telefono'] ?? null,
+                    'estado' => $request->info['estado'] ?? 'activo',
+                    'fecha_contratacion' => $request->info['fecha_contratacion'] ?? $request->fecha_ingreso
+                ]);
+            }
+
+            return response()->json($empleado->load('infoEmpleado'), 201);
+            // load() - Carga la relación infoEmpleado
+            // 201 - Código HTTP para "creado exitosamente"
+            
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Si la validación falla
+            return response()->json(['error' => $e->errors()], 422);
+            // 422 - Código HTTP para "error de validación"
+        } catch (\Exception $e) {
+            // Si hay otro error
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function show($id)
+    {
+        // Método para MOSTRAR un empleado específico
+        // Se accede con GET /api/empleados/{id}
+        
+        $empleado = Empleado::with(['compras', 'ventas', 'infoEmpleado'])->findOrFail($id);
+        // findOrFail() - Busca por ID, si no encuentra, lanza error 404
+        
+        return response()->json($empleado);
+        // Devuelve el empleado encontrado
+    }
+
+    public function update(Request $request, $id)
+    {
+        // Método para ACTUALIZAR un empleado
+        // Se accede con PUT /api/empleados/{id}
+        
+        $empleado = Empleado::findOrFail($id);
+        // Busca el empleado a actualizar
+        
+        $request->validate([
+            'nombre_empleado' => 'required|string|max:100',
+            'rol' => 'required|string|max:100',
+            'fecha_ingreso' => 'required|date',
+            'info' => 'nullable|array'
+        ]);
+
+        $empleado->update($request->only(['nombre_empleado', 'rol', 'fecha_ingreso']));
+        // update() - Actualiza el registro con los nuevos datos
+
+        if (!empty($request->info)) {
+            $info = InfoEmpleado::firstOrNew(['id_empleado' => $empleado->id_empleado]);
+            // firstOrNew() - Busca registro, si no existe, crea uno nuevo
+            
+            $info->salario = $request->info['salario'] ?? $info->salario ?? 0;
+            $info->telefono = $request->info['telefono'] ?? $info->telefono;
+            $info->estado = $request->info['estado'] ?? $info->estado ?? 'activo';
+            $info->fecha_contratacion = $request->info['fecha_contratacion'] ?? $info->fecha_contratacion ?? $request->fecha_ingreso;
+            $info->save();
+            // save() - Guarda los cambios en la base de datos
+        }
+
+        return response()->json($empleado->load('infoEmpleado'));
+    }
+
+    public function destroy($id)
+    {
+        // Método para ELIMINAR un empleado
+        // Se accede con DELETE /api/empleados/{id}
+        
+        $empleado = Empleado::findOrFail($id);
+        $empleado->delete();
+        // delete() - Elimina el registro de la base de datos
+        
+        return response()->json(null, 204);
+        // 204 - Código HTTP para "sin contenido" (eliminado exitosamente)
+    }
+}
+
+========================================
+MODELO - Empleado.php
+========================================
+
+<?php
+
+namespace App\Models;
+// Espacio de trabajo para modelos
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+// Importamos clases necesarias de Eloquent (ORM de Laravel)
+
+class Empleado extends Model
+{
+    use HasFactory;
+    // Trait que permite usar factories para datos de prueba
+
+    protected $primaryKey = 'id_empleado';
+    // Define que la clave primaria se llama 'id_empleado' (no 'id')
+    
+    protected $table = 'empleados';
+    // Define que la tabla se llama 'empleados' (no 'employees')
+    
+    protected $fillable = ['nombre_empleado', 'rol', 'fecha_ingreso'];
+    // Campos que se pueden llenar masivamente (seguridad contra mass assignment)
+
+    public function compras()
+    {
+        // Relación: Un empleado tiene MUCHAS compras
+        //hasMany() - Método de Eloquent para relación uno a muchos
+        
+        return $this->hasMany(Compra::class, 'id_empleado');
+        // Compra::class - Modelo relacionado
+        // 'id_empleado' - Clave foránea en la tabla compras
+    }
+
+    public function ventas()
+    {
+        // Relación: Un empleado tiene MUCHAS ventas
+        
+        return $this->hasMany(Venta::class, 'id_empleado');
+        // Venta::class - Modelo relacionado
+        // 'id_empleado' - Clave foránea en la tabla ventas
+    }
+
+    public function infoEmpleado()
+    {
+        // Relación: Un empleado tiene UNA info adicional
+        //hasOne() - Método de Eloquent para relación uno a uno
+        
+        return $this->hasOne(InfoEmpleado::class, 'id_empleado');
+        // InfoEmpleado::class - Modelo relacionado
+        // 'id_empleado' - Clave foránea en la tabla info_empleados
+    }
+}
+
+========================================
+CONCEPTOS CLAVE EXPLICADOS
+========================================
+
+NAMESPACE:
+- Organiza las clases para evitar conflictos de nombres
+- App\Http\Controllers significa: App → Http → Controllers
+
+USE:
+- Importa clases para no escribir la ruta completa
+- use App\Models\Empleado; permite escribir Empleado en lugar de App\Models\Empleado
+
+REQUEST:
+- Objeto que contiene todos los datos enviados por HTTP
+- $request->input('campo') obtiene un campo específico
+- $request->all() obtiene todos los campos
+
+VALIDACIÓN:
+- $request->validate() verifica que los datos cumplan reglas
+- required = obligatorio, string = texto, max:100 = máximo 100 caracteres
+- Si falla, lanza ValidationException
+
+RESPONSE:
+- response()->json() convierte datos a formato JSON
+- response()->json($datos, 200) envía datos con código HTTP 200
+- Códigos comunes: 200 (OK), 201 (Creado), 404 (No encontrado), 422 (Error validación), 500 (Error servidor)
+
+MODELOS Y ELOQUENT:
+- Model representa una tabla de la base de datos
+- Eloquent es el ORM (mapeo objeto-relacional) de Laravel
+- Permite trabajar con bases de datos usando objetos en lugar de SQL
+
+RELACIONES:
+- hasMany() = uno a muchos (empleado → muchas compras)
+- hasOne() = uno a uno (empleado → una info adicional)
+- with() carga relaciones para evitar consultas N+1
+
+TRY-CATCH:
+- try = intenta ejecutar código que podría fallar
+- catch = atrapa errores y los maneja
+- Evita que la aplicación se rompa
+
+FILLABLE:
+- Protege contra asignación masiva
+- Solo los campos en $fillable pueden ser asignados con create() o update()
+
+PRIMARY KEY:
+- Clave única que identifica un registro
+- Por defecto Laravel usa 'id', pero podemos cambiarla
+
+TABLE:
+- Nombre de la tabla en la base de datos
+- Por defecto Laravel usa plural del modelo (empleados para Empleado)
+
+========================================
+FLUJO COMPLETO DE UNA PETICIÓN
+========================================
+
+1. Cliente hace POST a /api/empleados
+2. Laravel enruta a EmpleadoController@store
+3. Request llega con datos JSON
+4. validate() verifica los datos
+5. create() inserta en tabla empleados
+6. Si hay info, create() inserta en info_empleados
+7. load() carga la relación
+8. response()->json() devuelve respuesta JSON
+9. Cliente recibe respuesta con código 201
+
+========================================
+EJEMPLOS DE USO
+========================================
+
+// LISTAR todos
+GET /api/empleados
+Respuesta: [{id_empleado: 1, nombre_empleado: "Juan", rol: "Panadero"}]
+
+// CREAR nuevo
+POST /api/empleados
+Body: {nombre_empleado: "María", rol: "Cajera", fecha_ingreso: "2024-01-01"}
+
+// ACTUALIZAR
+PUT /api/empleados/1
+Body: {nombre_empleado: "Juan Actualizado"}
+
+// ELIMINAR
+DELETE /api/empleados/1
+Respuesta: Vacía con código 204
+
+========================================
+FIN DE LA EXPLICACIÓN
+========================================
+
+========================================
+VISTAS - EXPLICACIÓN COMPLETA
+========================================
+
+========================================
+VISTA - panaderia.blade.php (Principal)
+========================================
+
+@extends('layouts.app')
+// Hereda del layout principal (estructura base HTML)
+
+@section('titulo', 'Sistema Panadería')
+// Define el título de la página
+
+@section('contenido')
+// Inicia la sección de contenido que va en el layout
+
+<div class="max-w-4xl mx-auto">
+// Contenedor con ancho máximo y centrado
+
+<h1 class="text-3xl font-bold text-center mb-8">🍞 Sistema de Panadería</h1>
+// Título principal con estilos de Tailwind CSS
+
+<div class="bg-white rounded-lg shadow-md p-4 mb-6">
+// Contenedor blanco con bordes redondeados y sombra
+
+<div class="flex space-x-4 border-b">
+// Flexbox con espacio entre elementos y borde inferior
+
+<button onclick="mostrarTab('clientes')" class="px-4 py-2 font-semibold">
+// Botón que al hacer clic llama a función JavaScript mostrarTab()
+// onclick = evento que se dispara al hacer clic
+// mostrarTab('clientes') = llama a la función con parámetro 'clientes'
+
+<div id="contenido" class="bg-white rounded-lg shadow-md p-6">
+// Contenedor principal donde se muestra el contenido dinámico
+
+<div id="clientes-tab" class="tab-content">
+// Div para la pestaña de clientes
+// id="clientes-tab" para que JavaScript lo encuentre
+
+<form onsubmit="guardarCliente(event)">
+// Formulario que al enviarse llama a guardarCliente(event)
+// onsubmit = evento que se dispara al enviar formulario
+// event = objeto del evento (lo pasamos para poder prevenir el envío normal)
+
+<input type="text" id="cliente-nombre" placeholder="Nombre del Cliente" required>
+// Campo de texto para nombre
+// id="cliente-nombre" para que JavaScript lo encuentre con getElementById()
+// required = campo obligatorio
+
+========================================
+VISTA - terminal/index.blade.php (Terminal de Ventas)
+========================================
+
+@extends('layouts.app')
+@section('titulo', 'Terminal de Ventas')
+@section('contenido')
+
+<div class="max-w-4xl mx-auto">
+<h1 class="text-3xl font-bold text-amber-800 mb-6 text-center">
+    <i class="fas fa-cash-register"></i> Terminal de Ventas
+</h1>
+// Icono de Font Awesome (fas fa-cash-register)
+
+<div id="paso-1" class="bg-white rounded-lg shadow p-6 mb-6">
+// Paso 1: Ingreso del cliente
+
+<input type="text" id="nombre-cliente" placeholder="Escribe tu nombre...">
+// Campo donde el cliente escribe su nombre
+
+<button onclick="buscarOCrearCliente()" class="btn-principal">
+// Botón que busca o crea cliente
+// btn-principal = clase CSS personalizada
+
+<div id="paso-2" class="hidden">
+// Paso 2: Selección de productos (inicialmente oculto)
+// class="hidden" = display: none con Tailwind
+
+<div id="lista-productos" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+// Grid para mostrar productos
+// grid-cols-2 = 2 columnas en móvil
+// md:grid-cols-3 = 3 columnas en pantallas medianas
+// gap-4 = espacio entre elementos
+
+<div id="carrito" class="mb-4">
+// Carrito de compras
+
+<span id="total-carrito">0.00</span>
+// Span donde se muestra el total
+
+========================================
+JAVASCRIPT EN LAS VISTAS
+========================================
+
+<script>
+// Inicia bloque de código JavaScript
+
+let clienteActual = null;
+let carrito = [];
+let productos = [];
+// Variables globales para almacenar datos
+
+async function cargarProductos() {
+    // async = función asíncrona (puede esperar)
+    
+    try {
+        const response = await fetch('/api/productos');
+        // fetch() = hace petición HTTP a la API
+        // await = espera a que la petición termine
+        // '/api/productos' = endpoint que devuelve productos
+        
+        productos = await response.json();
+        // response.json() = convierte respuesta a JSON
+        // await = espera a que se complete la conversión
+        
+        mostrarProductos();
+        // Llama función para mostrar productos en pantalla
+        
+    } catch (error) {
+        console.error('Error:', error);
+        // Si hay error, lo muestra en consola
+    }
+}
+
+function mostrarProductos() {
+    const container = document.getElementById('lista-productos');
+    // getElementById() = obtiene elemento por su id
+    
+    container.innerHTML = productos.map(p => `
+        <div class="border-2 border-amber-200 rounded-lg p-4">
+            <h3>${p.nombre_pan}</h3>
+            <p class="text-amber-600 font-bold">$${p.precio}</p>
+            <button onclick="agregarAlCarrito(${p.id_pan})">
+                Agregar
+            </button>
+        </div>
+    `).join('');
+    // productos.map() = transforma cada producto a HTML
+    // `` = template literals (permite variables con ${})
+    // ${p.nombre_pan} = inserta valor de la propiedad nombre_pan
+    // .join('') = une todos los elementos del array en un string
+    // innerHTML = inserta HTML en el contenedor
+}
+
+async function buscarOCrearCliente() {
+    const nombre = document.getElementById('nombre-cliente').value.trim();
+    // .value = obtiene valor del input
+    // .trim() = quita espacios al inicio y final
+    
+    if (!nombre) {
+        // !nombre = si nombre está vacío o es null/undefined
+        alert('Por favor escribe tu nombre');
+        return;
+        // return = sale de la función
+    }
+    
+    try {
+        const response = await fetch('/api/clientes');
+        const clientes = await response.json();
+        
+        clienteActual = clientes.find(c => c.nombre && c.nombre.toLowerCase() === nombre.toLowerCase());
+        // .find() = busca primer elemento que cumpla condición
+        // c.nombre.toLowerCase() === nombre.toLowerCase() = compara sin importar mayúsculas
+        
+        if (!clienteActual) {
+            // Si no encontró cliente, crea uno nuevo
+            
+            const crearResponse = await fetch('/api/clientes', {
+                method: 'POST',
+                // method: 'POST' = indica que vamos a crear
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    // CSRF token = protección contra ataques
+                },
+                body: JSON.stringify({ nombre_cliente: nombre })
+                // body = datos que enviamos
+                // JSON.stringify() = convierte objeto a texto JSON
+            });
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function agregarAlCarrito(idPan) {
+    const producto = productos.find(p => p.id_pan === idPan);
+    // Busca el producto por su id
+    
+    const item = carrito.find(c => c.id_pan === idPan);
+    // Busca si ya está en el carrito
+    
+    if (item) {
+        // Si ya está, aumenta cantidad
+        item.cantidad++;
+    } else {
+        // Si no está, lo agrega
+        carrito.push({
+            id_pan: idPan,
+            nombre: producto.nombre_pan,
+            precio: producto.precio,
+            cantidad: 1
+        });
+        // .push() = agrega elemento al array carrito
+    }
+    
+    actualizarCarrito();
+    // Llama función para actualizar visualización
+}
+
+</script>
+// Cierra bloque JavaScript
+
+========================================
+EXPLICACIÓN RESPONSE()->JSON() COMPLETA
+========================================
+
+return response()->json($datos, 200);
+// response() = crea objeto de respuesta HTTP
+// ->json($datos) = convierte $datos a formato JSON
+// ->json($datos, 200) = envía JSON con código HTTP 200
+
+EJEMPLO COMPLETO:
+return response()->json([
+    'success' => true,
+    'message' => 'Empleado creado correctamente',
+    'data' => [
+        'id_empleado' => 1,
+        'nombre_empleado' => 'Juan Pérez',
+        'rol' => 'Panadero',
+        'fecha_ingreso' => '2024-01-15'
+    ]
+], 201);
+
+LO QUE RECIBE EL CLIENTE (JSON):
+{
+    "success": true,
+    "message": "Empleado creado correctamente",
+    "data": {
+        "id_empleado": 1,
+        "nombre_empleado": "Juan Pérez",
+        "rol": "Panadero",
+        "fecha_ingreso": "2024-01-15"
+    }
+}
+
+========================================
+FLUJO COMPLETO WEB
+========================================
+
+1. USUARIO ESCRIBE URL EN NAVEGADOR
+   Ejemplo: http://localhost:8000
+
+2. LARAVEL BUSCA RUTA EN web.php
+   Route::get('/', function () {
+       return view('panaderia');
+   });
+
+3. LARAVEL CARGA VISTA .blade.php
+   - @extends('layouts.app') → carga layout base
+   - @section('contenido') → inserta contenido
+   - Procesa Blade directives (@extends, @section)
+
+4. NAVEGADOR RECIBE HTML COMPLETO
+   - Layout base + contenido de panaderia
+   - CSS de Tailwind aplicado
+   - JavaScript ejecutado
+
+5. USUARIO HACE CLIC EN BOTÓN
+   <button onclick="mostrarTab('clientes')">
+   - onclick dispara función JavaScript
+   - mostrarTab('clientes') se ejecuta
+
+6. JAVASCRIPT HACE PETICIÓN FETCH
+   fetch('/api/clientes')
+   - Petición HTTP GET a /api/clientes
+   - Laravel enruta a EmpleadoController@index
+
+7. CONTROLADOR EJECUTA LÓGICA
+   $clientes = Cliente::all();
+   return response()->json($clientes);
+
+8. JAVASCRIPT RECIBE JSON Y ACTUALIZA HTML
+   .then(response => response.json())
+   .then(data => mostrarClientes(data))
+
+========================================
+CONCEPTOS WEB EXPLICADOS
+========================================
+
+HTML:
+- Lenguaje de marcado para estructura web
+- <div> = contenedor genérico
+- <button> = botón clickeable
+- class = clase CSS para estilos
+- id = identificador único para JavaScript
+
+CSS (Tailwind):
+- Framework para estilos rápidos
+- class="bg-white" = background-color: white
+- class="p-4" = padding: 1rem
+- class="text-center" = text-align: center
+- class="rounded-lg" = border-radius: 0.5rem
+
+JavaScript:
+- Lenguaje de programación para interactividad web
+- let = declara variable mutable
+- const = declara variable inmutable
+- function = bloque de código reutilizable
+- async/await = maneja operaciones asíncronas
+- fetch() = hace peticiones HTTP
+- DOM = Document Object Model (estructura HTML)
+
+JSON (JavaScript Object Notation):
+- Formato ligero para intercambio de datos
+- { "clave": "valor" } = objeto
+- [1, 2, 3] = array
+- "texto" = string
+- 123 = número
+- true/false = booleano
+
+HTTP:
+- Protocolo de comunicación web
+- GET = obtener datos
+- POST = crear datos
+- PUT = actualizar datos
+- DELETE = eliminar datos
+- Códigos: 200 (OK), 201 (Creado), 404 (No encontrado), 500 (Error)
+
+BLADE (Motor de plantillas Laravel):
+- @extends = hereda de otra plantilla
+- @section = define sección de contenido
+- @yield = muestra sección de plantilla
+- {{ $variable }} = imprime variable con escape
+- {!! $variable !!} = imprime variable sin escape
+- @if, @foreach = directivas de control
+
+========================================
+EJEMPLO PETICIÓN COMPLETA
+========================================
+
+FRONTEND (JavaScript):
+fetch('/api/clientes', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': 'token_csrf_aqui'
+    },
+    body: JSON.stringify({
+        nombre_cliente: 'María García'
+    })
+})
+.then(response => response.json())
+.then(data => {
+    console.log('Cliente creado:', data);
+});
+
+BACKEND (Laravel Controller):
+public function store(Request $request) {
+    $request->validate(['nombre_cliente' => 'required']);
+    
+    $cliente = Cliente::create(['nombre' => $request->nombre_cliente]);
+    
+    return response()->json([
+        'success' => true,
+        'cliente' => $cliente
+    ], 201);
+}
+
+RESPUESTA JSON:
+{
+    "success": true,
+    "cliente": {
+        "id_cliente": 5,
+        "nombre": "María García",
+        "created_at": "2024-01-15T10:30:00.000000Z",
+        "updated_at": "2024-01-15T10:30:00.000000Z"
+    }
+}
+
+========================================
+FIN DE LA EXPLICACIÓN COMPLETA
+========================================

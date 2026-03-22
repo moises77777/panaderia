@@ -77,9 +77,12 @@
     let materias = [];
 
     async function cargarMaterias() {
+        console.log('Cargando materias primas...');
         try {
             const response = await fetch('/api/materias-primas');
+            console.log('Response status:', response.status);
             materias = await response.json();
+            console.log('Materias primas cargadas:', materias);
             mostrarMaterias();
         } catch (error) {
             console.error('Error cargando materias:', error);
@@ -88,6 +91,20 @@
 
     function mostrarMaterias() {
         const tbody = document.getElementById('tabla-materias');
+        
+        if (materias.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-wheat-awn text-4xl mb-2"></i>
+                        <p class="text-lg">No hay materias primas registradas</p>
+                        <p class="text-sm">Haz clic en "Nueva Materia Prima" para agregar una</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
         tbody.innerHTML = materias.map(materia => `
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${materia.id_materia_prima}</td>
@@ -96,11 +113,11 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${materia.stock_actual}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${materia.fecha_ingreso}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onclick="editarMateria(${materia.id_materia_prima})" class="text-purple-600 hover:text-purple-900 mr-3">
-                        <i class="fas fa-edit"></i>
+                    <button onclick="editarMateria(${materia.id_materia_prima})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg font-bold mr-2" title="Editar">
+                        ✏️ Editar
                     </button>
-                    <button onclick="eliminarMateria(${materia.id_materia_prima})" class="text-red-600 hover:text-red-900">
-                        <i class="fas fa-trash"></i>
+                    <button onclick="eliminarMateria(${materia.id_materia_prima})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg font-bold" title="Eliminar">
+                        🗑️ Eliminar
                     </button>
                 </td>
             </tr>

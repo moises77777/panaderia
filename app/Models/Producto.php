@@ -11,7 +11,7 @@ class Producto extends Model
 
     protected $primaryKey = 'id_pan';
     protected $table = 'producto';
-    protected $fillable = ['nombre_pan', 'precio', 'stock_disponible'];
+    protected $fillable = ['nombre_pan', 'precio', 'stock_disponible', 'imagen'];
 
     public function materialesOcupados()
     {

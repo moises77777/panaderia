@@ -52,7 +52,7 @@
     <!-- Top Vendedores -->
     <div class="bg-white rounded-lg shadow p-4 mb-6">
         <h2 class="text-xl font-bold text-gray-800 mb-4">
-            <i class="fas fa-trophy"></i> Top Vendedores
+            <i class="fas fa-trophy"></i>
         </h2>
         <div id="top-vendedores" class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <!-- Se llena con JS -->
@@ -72,7 +72,6 @@
                         <th class="px-4 py-2 text-left">Cliente</th>
                         <th class="px-4 py-2 text-left">Vendedor</th>
                         <th class="px-4 py-2 text-right">Total</th>
-                        <th class="px-4 py-2 text-center">Detalles</th>
                     </tr>
                 </thead>
                 <tbody id="tabla-ventas">
@@ -138,18 +137,7 @@ function mostrarReporte(ventas) {
         vendedores[nombre].total += parseFloat(v.total_venta);
     });
     
-    const topVendedores = Object.entries(vendedores)
-        .sort((a, b) => b[1].total - a[1].total)
-        .slice(0, 3);
-    
-    document.getElementById('top-vendedores').innerHTML = topVendedores.map(([nombre, stats], i) => `
-        <div class="bg-${i === 0 ? 'yellow' : i === 1 ? 'gray' : 'orange'}-100 p-3 rounded text-center border-2 border-${i === 0 ? 'yellow' : i === 1 ? 'gray' : 'orange'}-300">
-            <p class="font-bold text-gray-800">${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'} ${nombre}</p>
-            <p class="text-sm text-gray-600">${stats.ventas} ventas</p>
-            <p class="text-lg font-bold text-green-600">$${stats.total.toFixed(2)}</p>
-        </div>
-    `).join('') || '<p class="text-gray-500 col-span-3 text-center">No hay ventas en este período</p>';
-    
+   
     // Tabla
     document.getElementById('tabla-ventas').innerHTML = ventas.slice(0, 50).map(v => `
         <tr class="border-b hover:bg-gray-50">

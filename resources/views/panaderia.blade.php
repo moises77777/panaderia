@@ -10,7 +10,6 @@
     <div class="container mx-auto p-6">
         <h1 class="text-3xl font-bold text-center mb-8">🍞 Sistema de Panadería</h1>
         
-        <!-- Tabs de Navegación -->
         <div class="bg-white rounded-lg shadow-md p-4 mb-6">
             <div class="flex space-x-4 border-b">
                 <button onclick="mostrarTab('clientes')" class="px-4 py-2 font-semibold text-blue-600 border-b-2 border-blue-600">Clientes</button>
@@ -22,13 +21,10 @@
             </div>
         </div>
 
-        <!-- Contenido Dinámico -->
         <div id="contenido" class="bg-white rounded-lg shadow-md p-6">
-            <!-- Clientes Tab -->
             <div id="clientes-tab" class="tab-content">
                 <h2 class="text-2xl font-bold mb-4">👥 Clientes</h2>
                 
-                <!-- Formulario Nuevo Cliente -->
                 <div class="mb-6 p-4 bg-blue-50 rounded">
                     <h3 class="text-lg font-semibold mb-3">➕ Nuevo Cliente</h3>
                     <form onsubmit="guardarCliente(event)">
@@ -42,13 +38,9 @@
                     </form>
                 </div>
 
-                <!-- Lista de Clientes -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="clientes-lista">
-                    <!-- Se llenará con JavaScript -->
-                </div>
             </div>
 
-            <!-- Empleados Tab -->
             <div id="empleados-tab" class="tab-content hidden">
                 <h2 class="text-2xl font-bold mb-4">👨‍🍳 Empleados</h2>
                 
@@ -70,11 +62,9 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="empleados-lista">
-                    <!-- Se llenará con JavaScript -->
                 </div>
             </div>
 
-            <!-- Productos Tab -->
             <div id="productos-tab" class="tab-content hidden">
                 <h2 class="text-2xl font-bold mb-4">🍞 Productos</h2>
                 
@@ -96,11 +86,9 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="productos-lista">
-                    <!-- Se llenará con JavaScript -->
                 </div>
             </div>
 
-            <!-- Materias Primas Tab -->
             <div id="materias-tab" class="tab-content hidden">
                 <h2 class="text-2xl font-bold mb-4">🌾 Materias Primas</h2>
                 
@@ -122,16 +110,13 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="materias-lista">
-                    <!-- Se llenará con JavaScript -->
                 </div>
             </div>
         </div>
 
-        <!-- Estadísticas -->
         <div class="bg-white rounded-lg shadow-md p-6 mt-6">
             <h2 class="text-2xl font-bold mb-4">📊 Estadísticas</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="estadisticas">
-                <!-- Se llenará con JavaScript -->
             </div>
         </div>
     </div>
@@ -144,21 +129,17 @@
             materias: []
         };
 
-        // Funciones de navegación
         function mostrarTab(tab) {
-            // Ocultar todos los tabs
             const tabs = document.querySelectorAll('.tab-content');
             tabs.forEach(t => {
                 if (t) t.classList.add('hidden');
             });
             
-            // Mostrar tab seleccionado
             const tabSeleccionado = document.getElementById(tab + '-tab');
             if (tabSeleccionado) {
                 tabSeleccionado.classList.remove('hidden');
             }
             
-            // Actualizar botones
             const botones = document.querySelectorAll('.border-b-2');
             botones.forEach(b => {
                 b.classList.remove('border-b-2', 'border-blue-600', 'text-blue-600');
@@ -167,7 +148,6 @@
                 event.target.classList.add('border-b-2', 'border-blue-600', 'text-blue-600');
             }
             
-            // Cargar datos
             if (tab === 'materias-primas') {
                 cargarDatos('materias-primas');
             } else {
@@ -175,7 +155,6 @@
             }
         }
 
-        // Cargar datos desde la API
         async function cargarDatos(tipo) {
             try {
                 const response = await fetch(`/api/${tipo}`);
@@ -187,7 +166,6 @@
             }
         }
 
-        // Mostrar datos en cards
         function mostrarDatos(tipo) {
             const contenedor = document.getElementById(`${tipo}-lista`);
             if (!contenedor) {
@@ -202,7 +180,6 @@
             });
         }
 
-        // Crear cards dinámicamente
         function crearCard(tipo, item) {
             const div = document.createElement('div');
             div.className = 'bg-white p-4 rounded-lg shadow border border-gray-200';
@@ -243,7 +220,6 @@
             return div;
         }
 
-        // Funciones CRUD
         async function guardarCliente(event) {
             event.preventDefault();
             const nombre = document.getElementById('cliente-nombre').value;
@@ -343,7 +319,6 @@
             }
         }
 
-        // Cargar estadísticas
         async function cargarEstadisticas() {
             try {
                 const response = await fetch('/api/estadisticas');
@@ -373,13 +348,11 @@
             }
         }
 
-        // Cargar datos iniciales
         window.onload = function() {
             cargarDatos('clientes');
             cargarEstadisticas();
         };
 
-        // Estilos para tabs
         const style = document.createElement('style');
         style.textContent = `
             .tab-content { display: block; }

@@ -80,9 +80,12 @@
     let empleados = [];
 
     async function cargarCompras() {
+        console.log('Cargando compras...');
         try {
             const response = await fetch('/api/compras');
+            console.log('Response status:', response.status);
             compras = await response.json();
+            console.log('Compras cargadas:', compras);
             mostrarCompras();
         } catch (error) {
             console.error('Error cargando compras:', error);
@@ -103,6 +106,20 @@
 
     function mostrarCompras() {
         const tbody = document.getElementById('tabla-compras');
+        
+        if (compras.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                        <p class="text-lg">No hay compras registradas</p>
+                        <p class="text-sm">Haz clic en "Nueva Compra" para agregar una</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
         tbody.innerHTML = compras.map(compra => {
             const empleado = compra.empleado ? compra.empleado.nombre_empleado : 'N/A';
             return `
@@ -113,11 +130,11 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">$${parseFloat(compra.total_compra).toFixed(2)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${compra.notas || '-'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onclick="editarCompra(${compra.id_compra})" class="text-red-600 hover:text-red-900 mr-3">
-                        <i class="fas fa-edit"></i>
+                    <button onclick="editarCompra(${compra.id_compra})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg font-bold mr-2" title="Editar">
+                        ✏️ Editar
                     </button>
-                    <button onclick="eliminarCompra(${compra.id_compra})" class="text-red-800 hover:text-red-900">
-                        <i class="fas fa-trash"></i>
+                    <button onclick="eliminarCompra(${compra.id_compra})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg font-bold" title="Eliminar">
+                        🗑️ Eliminar
                     </button>
                 </td>
             </tr>

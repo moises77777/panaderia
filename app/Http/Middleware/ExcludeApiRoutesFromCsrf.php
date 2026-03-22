@@ -11,7 +11,8 @@ class ExcludeApiRoutesFromCsrf extends Middleware
      */
     protected static $except = [
         'api/*',
-        'sanctum/*'
+        'sanctum/*',
+        'api/ventas-publico'
     ];
 
     /**

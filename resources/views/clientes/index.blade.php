@@ -63,9 +63,12 @@
     let clientes = [];
 
     async function cargarClientes() {
+        console.log('Cargando clientes...');
         try {
             const response = await fetch('/api/clientes');
+            console.log('Response status:', response.status);
             clientes = await response.json();
+            console.log('Clientes cargados:', clientes);
             mostrarClientes();
         } catch (error) {
             console.error('Error cargando clientes:', error);
@@ -74,17 +77,31 @@
 
     function mostrarClientes() {
         const tbody = document.getElementById('tabla-clientes');
+        
+        if (clientes.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="px-6 py-8 text-center text-gray-500">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p class="text-lg">No hay clientes registrados</p>
+                        <p class="text-sm">Haz clic en "Nuevo Cliente" para agregar uno</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
         tbody.innerHTML = clientes.map(cliente => `
             <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${cliente.id_cliente}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${cliente.nombre}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${cliente.ventas ? cliente.ventas.length : 0}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">0</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onclick="editarCliente(${cliente.id_cliente})" class="text-blue-600 hover:text-blue-900 mr-3">
-                        <i class="fas fa-edit"></i>
+                    <button onclick="editarCliente(${cliente.id_cliente})" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-2 rounded-lg font-bold mr-2" title="Editar">
+                        ✏️ Editar
                     </button>
-                    <button onclick="eliminarCliente(${cliente.id_cliente})" class="text-red-600 hover:text-red-900">
-                        <i class="fas fa-trash"></i>
+                    <button onclick="eliminarCliente(${cliente.id_cliente})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg font-bold" title="Eliminar">
+                        🗑️ Eliminar
                     </button>
                 </td>
             </tr>
